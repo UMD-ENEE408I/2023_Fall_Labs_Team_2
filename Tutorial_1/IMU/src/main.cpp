@@ -5,9 +5,66 @@
 #include <Adafruit_Sensor.h>
 
 Adafruit_MPU6050 mpu;
+int new_time;
+int old_time;
+int delta_time;
+int delta_roll;
+float new_roll = 0;
+float old_roll = 0;
+float angle;
 
 const unsigned int ADC_1_CS = 2;
 const unsigned int ADC_2_CS = 17;
+const unsigned int M1_IN_1 = 13;
+const unsigned int M1_IN_2 = 12;
+const unsigned int M2_IN_1 = 25;
+const unsigned int M2_IN_2 = 14;
+
+
+const unsigned int M1_IN_1_CHANNEL = 0;
+const unsigned int M1_IN_2_CHANNEL = 1;
+const unsigned int M2_IN_1_CHANNEL = 2;
+const unsigned int M2_IN_2_CHANNEL = 3;
+
+const unsigned int M1_I_SENSE = 35;
+const unsigned int M2_I_SENSE = 34;
+
+const unsigned int PWM_VALUE = 512; // Do not give max PWM. Robot will move fast
+
+const int freq = 5000;
+const int resolution = 10;
+
+void forwardM1() {
+  ledcWrite(M1_IN_1_CHANNEL, PWM_VALUE);
+  ledcWrite(M1_IN_2_CHANNEL, 0);
+}
+
+void forwardM2() {
+  ledcWrite(M2_IN_1_CHANNEL, PWM_VALUE);
+  ledcWrite(M2_IN_2_CHANNEL, 0);
+}
+
+void backwardsM1() {
+  ledcWrite(M1_IN_1_CHANNEL, 0);
+  ledcWrite(M1_IN_2_CHANNEL, PWM_VALUE);
+}
+
+void backwardsM2() {
+  ledcWrite(M2_IN_1_CHANNEL, 0);
+  ledcWrite(M2_IN_2_CHANNEL, PWM_VALUE);
+}
+
+void idle() {
+  ledcWrite(M1_IN_1_CHANNEL, 0);
+  ledcWrite(M1_IN_2_CHANNEL, 0);
+  ledcWrite(M2_IN_1_CHANNEL, 0);
+  ledcWrite(M2_IN_2_CHANNEL, 0);
+}
+
+
+// void rotate(int degree, int ) {
+
+// }
 
 void setup(void) {
   // Stop the right motor by setting pin 14 low
@@ -28,6 +85,19 @@ void setup(void) {
 
   digitalWrite(ADC_1_CS, HIGH); // Without this the ADC's write
   digitalWrite(ADC_2_CS, HIGH); // to the SPI bus while the nRF24 is!!!!
+
+  ledcSetup(M1_IN_1_CHANNEL, freq, resolution);
+  ledcSetup(M1_IN_2_CHANNEL, freq, resolution);
+  ledcSetup(M2_IN_1_CHANNEL, freq, resolution);
+  ledcSetup(M2_IN_2_CHANNEL, freq, resolution);
+
+  ledcAttachPin(M1_IN_1, M1_IN_1_CHANNEL);
+  ledcAttachPin(M1_IN_2, M1_IN_2_CHANNEL);
+  ledcAttachPin(M2_IN_1, M2_IN_1_CHANNEL);
+  ledcAttachPin(M2_IN_2, M2_IN_2_CHANNEL);
+
+  pinMode(M1_I_SENSE, INPUT);
+  pinMode(M2_I_SENSE, INPUT);
 
   // Try to initialize!
   if (!mpu.begin()) {
@@ -127,4 +197,22 @@ void loop() {
   Serial.print("Temperature: ");
   Serial.print(temp.temperature);
   Serial.println(" degC");
+
+  new_time = millis();
+  new_roll = g.gyro.z;
+  delay(100);
+
+  delta_roll = new_roll - old_roll;
+  delta_time = new_time - old_time;
+  angle = 60*delta_roll*delta_time;
+  // Serial.println("roll angle:" + angle);
+
+  if(new_roll != old_roll) {
+    old_roll = new_roll;
+  }
+  if(new_time != old_time) {
+    old_roll = new_time;
+  }
+
+
 }
