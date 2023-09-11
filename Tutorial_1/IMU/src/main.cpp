@@ -1,17 +1,19 @@
 #include <Arduino.h>
-// Basic demo for accelerometer readings from Adafruit MPU6050
+#include <PID_v1.h>
 
+// Basic demo for accelerometer readings from Adafruit MPU6050
 #include <Adafruit_MPU6050.h>
 #include <Adafruit_Sensor.h>
 
 Adafruit_MPU6050 mpu;
-int new_time;
-int old_time;
-int delta_time;
-int delta_roll;
-float new_roll = 0;
-float old_roll = 0;
 float angle;
+
+//Define Variables we'll be connecting to
+double Setpoint, Input, Output;
+
+//Specify the links and initial tuning parameters
+double Kp=60, Ki=40, Kd=25;
+PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 const unsigned int ADC_1_CS = 2;
 const unsigned int ADC_2_CS = 17;
@@ -29,13 +31,14 @@ const unsigned int M2_IN_2_CHANNEL = 3;
 const unsigned int M1_I_SENSE = 35;
 const unsigned int M2_I_SENSE = 34;
 
-const unsigned int PWM_VALUE = 512; // Do not give max PWM. Robot will move fast
+const unsigned int PWM_VALUE = 370; // Do not give max PWM. Robot will move fast
 
 const int freq = 5000;
 const int resolution = 10;
+int stop = 0;
 
-void forwardM1() {
-  ledcWrite(M1_IN_1_CHANNEL, PWM_VALUE);
+void forwardM1(int PWM) {
+  ledcWrite(M1_IN_1_CHANNEL, PWM);
   ledcWrite(M1_IN_2_CHANNEL, 0);
 }
 
@@ -44,10 +47,21 @@ void forwardM2() {
   ledcWrite(M2_IN_2_CHANNEL, 0);
 }
 
-void backwardsM1() {
+void backwardsM1(int PWM) {
   ledcWrite(M1_IN_1_CHANNEL, 0);
   ledcWrite(M1_IN_2_CHANNEL, PWM_VALUE);
 }
+
+void brakeM1() {
+  ledcWrite(M1_IN_1_CHANNEL, PWM_VALUE);
+  ledcWrite(M1_IN_2_CHANNEL, PWM_VALUE);
+}
+
+void brakeM2() {
+  ledcWrite(M2_IN_1_CHANNEL, PWM_VALUE);
+  ledcWrite(M2_IN_2_CHANNEL, PWM_VALUE);
+}
+
 
 void backwardsM2() {
   ledcWrite(M2_IN_1_CHANNEL, 0);
@@ -61,6 +75,21 @@ void idle() {
   ledcWrite(M2_IN_2_CHANNEL, 0);
 }
 
+// void goTo90(float angle) {
+// if (angle < 2.60f) {
+//     // forwardM1();
+//     backwardsM2();
+//   } else if (angle > 2.70f) {
+//     backwardsM1();
+//     forwardM2();
+//   } else {
+//     brakeM1();
+//     brakeM2();
+//     idle();
+//   }
+//   // delay(200);
+// }
+
 
 // void rotate(int degree, int ) {
 
@@ -73,6 +102,12 @@ void setup(void) {
   pinMode(14, OUTPUT);
   digitalWrite(14, LOW);
   delay(100);
+
+  Input = 0;
+  Setpoint = 2.40;
+  myPID.SetMode(AUTOMATIC);
+  myPID.SetOutputLimits(0,410);
+  myPID.SetTunings(Kp,Ki,Kd);
   
   Serial.begin(115200);
   while (!Serial)
@@ -198,21 +233,39 @@ void loop() {
   Serial.print(temp.temperature);
   Serial.println(" degC");
 
-  new_time = millis();
-  new_roll = g.gyro.z;
-  delay(100);
-
-  delta_roll = new_roll - old_roll;
-  delta_time = new_time - old_time;
-  angle = 60*delta_roll*delta_time;
-  // Serial.println("roll angle:" + angle);
-
-  if(new_roll != old_roll) {
-    old_roll = new_roll;
+  delay(200);
+  angle = angle + (g.gyro.z/200)*60;
+  Input = Input + (g.gyro.z/200)*60;
+  myPID.Compute();
+  Serial.print(" angle: ");
+  Serial.print(Input);
+  Serial.print(" OUTPUT: ");
+  Serial.print(Output);
+  
+  if(stop == 0) {
+    if (Input < 2.30f && stop == 0) {
+      forwardM1(Output);
+    } else if (angle > 2.50f && stop == 0) {
+      backwardsM1(Output);
+    } else {
+      idle();
+      delay(5000);
+      stop = 2;
+    }
   }
-  if(new_time != old_time) {
-    old_roll = new_time;
+
+  if(stop == 2) {
+    Setpoint = 4.70;
+    if (Input < 4.60f && stop == 2) {
+      forwardM1(Output);
+    } else if (angle > 4.75f && stop == 2) {
+      backwardsM1(Output);
+    } else {
+      idle();
+      stop = 3;
+    }
   }
 
+    // goTo90(angle);
 
 }
