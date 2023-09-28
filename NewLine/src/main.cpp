@@ -1,0 +1,144 @@
+#include <Arduino.h>
+#include <Adafruit_MCP3008.h>
+
+Adafruit_MCP3008 adc1;
+Adafruit_MCP3008 adc2;
+
+long enc1_value_old;
+long enc2_value_old;
+
+const unsigned int M1_IN_1 = 13;
+const unsigned int M1_IN_2 = 12;
+const unsigned int M2_IN_1 = 25;
+const unsigned int M2_IN_2 = 14;
+
+const unsigned int M1_IN_1_CHANNEL = 0;
+const unsigned int M1_IN_2_CHANNEL = 1;
+const unsigned int M2_IN_1_CHANNEL = 2;
+const unsigned int M2_IN_2_CHANNEL = 3;
+
+const unsigned int M1_I_SENSE = 35;
+const unsigned int M2_I_SENSE = 34;
+
+const unsigned int PWM_VALUE = 512; // Do not give max PWM. Robot will move fast
+
+const int freq = 5000;
+const int resolution = 10;
+
+const unsigned int ADC_1_CS = 2;
+const unsigned int ADC_2_CS = 17;
+
+int adc1_buf[8];
+int adc2_buf[8];
+float avgVal = 0;
+int trueVal = 0;
+
+int threshold = 700; // threshold value for light and dark
+
+void readADC() {
+  avgVal = 0;
+  trueVal = 0;
+  for (int i = 0; i < 8; i++) {
+    adc1_buf[i] = adc1.readADC(i);
+    adc2_buf[i] = adc2.readADC(i);
+
+    if (i<7) {
+      if (adc1_buf[i] > threshold) {
+      } else {
+        avgVal += (i*2) + 1;
+        trueVal += 1;
+      }
+    }
+
+    if (i<6) {
+      if (adc2_buf[i] > threshold) {
+      } else {
+        avgVal += (i*2) + 2;
+        trueVal += 1;
+      }
+    }
+  }
+  if (trueVal > 0) {
+    avgVal = float(avgVal / (float)trueVal);
+  }
+  Serial.print(avgVal);Serial.print("\t");
+}
+
+void forwardM1(int speed) {
+  ledcWrite(M1_IN_1_CHANNEL, speed);
+  ledcWrite(M1_IN_2_CHANNEL, 0);
+}
+
+void forwardM2(int speed) {
+  ledcWrite(M2_IN_1_CHANNEL, speed);
+  ledcWrite(M2_IN_2_CHANNEL, 0);
+}
+
+void backwardsM1(int speed) {
+  ledcWrite(M1_IN_1_CHANNEL, 0);
+  ledcWrite(M1_IN_2_CHANNEL, PWM_VALUE);
+}
+
+void backwardsM2(int speed) {
+  ledcWrite(M2_IN_1_CHANNEL, 0);
+  ledcWrite(M2_IN_2_CHANNEL, PWM_VALUE);
+}
+
+void brakeM1() {
+  ledcWrite(M1_IN_1_CHANNEL, PWM_VALUE);
+  ledcWrite(M1_IN_2_CHANNEL, PWM_VALUE);
+}
+
+void brakeM2() {
+  ledcWrite(M2_IN_1_CHANNEL, PWM_VALUE);
+  ledcWrite(M2_IN_2_CHANNEL, PWM_VALUE);
+}
+
+void idle() {
+  ledcWrite(M1_IN_1_CHANNEL, 0);
+  ledcWrite(M1_IN_2_CHANNEL, 0);
+  ledcWrite(M2_IN_1_CHANNEL, 0);
+  ledcWrite(M2_IN_2_CHANNEL, 0);
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(14, OUTPUT);
+  digitalWrite(14, LOW);
+  delay(100);
+  ledcSetup(M1_IN_1_CHANNEL, freq, resolution);
+  ledcSetup(M1_IN_2_CHANNEL, freq, resolution);
+  ledcSetup(M2_IN_1_CHANNEL, freq, resolution);
+  ledcSetup(M2_IN_2_CHANNEL, freq, resolution);
+
+  ledcAttachPin(M1_IN_1, M1_IN_1_CHANNEL);
+  ledcAttachPin(M1_IN_2, M1_IN_2_CHANNEL);
+  ledcAttachPin(M2_IN_1, M2_IN_1_CHANNEL);
+  ledcAttachPin(M2_IN_2, M2_IN_2_CHANNEL);
+
+  pinMode(M1_I_SENSE, INPUT);
+  pinMode(M2_I_SENSE, INPUT);
+  adc1.begin(ADC_1_CS);  
+  adc2.begin(ADC_2_CS);
+}
+
+void loop() {
+  //follow line
+  readADC();
+  //straight
+  if (avgVal >= 4.5 && avgVal <= 8.5) {
+    backwardsM1(200);
+    backwardsM2(200);
+  }
+  //right
+  if (avgVal < 4.5 && avgVal > 0) {
+    backwardsM1(200);
+    brakeM2();
+  }
+  //left
+  if (avgVal > 8.5) {
+    brakeM1();
+    backwardsM2(200);
+  }
+
+}
