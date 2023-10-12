@@ -15,7 +15,7 @@ double Setpoint, Input, Output;
 
 // double Kp=60, Ki=40, Kd=25;
 
-double Kp=28, Ki=85, Kd=4;
+double Kp=28, Ki=130, Kd=4;
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 const unsigned int ADC_1_CS = 2;
