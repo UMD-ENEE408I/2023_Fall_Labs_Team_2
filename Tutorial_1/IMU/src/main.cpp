@@ -12,7 +12,10 @@ float angle;
 double Setpoint, Input, Output;
 
 //Specify the links and initial tuning parameters
-double Kp=60, Ki=40, Kd=25;
+
+// double Kp=60, Ki=40, Kd=25;
+
+double Kp=28, Ki=85, Kd=4;
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 const unsigned int ADC_1_CS = 2;
@@ -31,7 +34,7 @@ const unsigned int M2_IN_2_CHANNEL = 3;
 const unsigned int M1_I_SENSE = 35;
 const unsigned int M2_I_SENSE = 34;
 
-const unsigned int PWM_VALUE = 370; // Do not give max PWM. Robot will move fast
+const unsigned int PWM_VALUE = 550; // Do not give max PWM. Robot will move fast
 
 const int freq = 5000;
 const int resolution = 10;
@@ -75,25 +78,32 @@ void idle() {
   ledcWrite(M2_IN_2_CHANNEL, 0);
 }
 
-// void goTo90(float angle) {
-// if (angle < 2.60f) {
-//     // forwardM1();
-//     backwardsM2();
-//   } else if (angle > 2.70f) {
-//     backwardsM1();
-//     forwardM2();
-//   } else {
-//     brakeM1();
-//     brakeM2();
-//     idle();
-//   }
-//   // delay(200);
-// }
+void LeftTurn() {
+  myPID.Compute();
+  Serial.print(" angle: ");
+  Serial.print(Input);
+  Serial.print("\t");
+  Serial.print(" OUTPUT: ");
+  Serial.print(Output);
+  Serial.print("\t");
+  sensors_event_t a, g, temp;
+  mpu.getEvent(&a, &g, &temp);
 
+  delay(20);
+  Input = Input + (g.gyro.z/20);
 
-// void rotate(int degree, int ) {
+    if(stop == 0) {
+    if (Input < 3.1f && stop == 0) {
+      forwardM1(Output);
+    } else {
+      brakeM1();
+      brakeM2();
+      stop = 2;      
+    }
+  }
 
-// }
+}
+
 
 void setup(void) {
   // Stop the right motor by setting pin 14 low
@@ -106,7 +116,7 @@ void setup(void) {
   Input = 0;
   Setpoint = 2.40;
   myPID.SetMode(AUTOMATIC);
-  myPID.SetOutputLimits(0,410);
+  myPID.SetOutputLimits(200,PWM_VALUE);
   myPID.SetTunings(Kp,Ki,Kd);
   
   Serial.begin(115200);
@@ -209,63 +219,9 @@ void setup(void) {
 void loop() {
 
   /* Get new sensor events with the readings */
-  sensors_event_t a, g, temp;
-  mpu.getEvent(&a, &g, &temp);
 
-  /* Print out the values */
-  Serial.print("Acceleration X: ");
-  Serial.print(a.acceleration.x);
-  Serial.print(", Y: ");
-  Serial.print(a.acceleration.y);
-  Serial.print(", Z: ");
-  Serial.print(a.acceleration.z);
-  Serial.print(" m/s^2 \t");
 
-  Serial.print("Rotation X: ");
-  Serial.print(g.gyro.x);
-  Serial.print(", Y: ");
-  Serial.print(g.gyro.y);
-  Serial.print(", Z: ");
-  Serial.print(g.gyro.z);
-  Serial.print(" rad/s \t");
-
-  Serial.print("Temperature: ");
-  Serial.print(temp.temperature);
-  Serial.println(" degC");
-
-  delay(200);
-  angle = angle + (g.gyro.z/200)*60;
-  Input = Input + (g.gyro.z/200)*60;
-  myPID.Compute();
-  Serial.print(" angle: ");
-  Serial.print(Input);
-  Serial.print(" OUTPUT: ");
-  Serial.print(Output);
-  
-  if(stop == 0) {
-    if (Input < 2.30f && stop == 0) {
-      forwardM1(Output);
-    } else if (angle > 2.50f && stop == 0) {
-      backwardsM1(Output);
-    } else {
-      idle();
-      delay(5000);
-      stop = 2;
-    }
-  }
-
-  if(stop == 2) {
-    Setpoint = 4.70;
-    if (Input < 4.60f && stop == 2) {
-      forwardM1(Output);
-    } else if (angle > 4.75f && stop == 2) {
-      backwardsM1(Output);
-    } else {
-      idle();
-      stop = 3;
-    }
-  }
-
-    // goTo90(angle);
+  LeftTurn();
+  // LeftTurn();
 
 }
