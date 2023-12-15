@@ -1,6 +1,7 @@
 import cv2
 import math
 import numpy as np
+from ultralytics import YOLO
 from pupil_apriltags import Detector
 
 
@@ -12,6 +13,7 @@ class vision:
         self.obj_in_frame = False
         self.vid = cv2.VideoCapture(vid_device)
         self.frame = None
+        self.model = YOLO('./yolov8n.pt')  # load an official detection model
         self.at_detector = Detector(
         families="tag36h11",
         nthreads=1,
@@ -61,11 +63,41 @@ class vision:
          # print(tags[0].corners.sum())
          # self.drawCross(temp_tag.center)
          # print(temp_tag.tag_id)
-         return temp_tag.tag_id
+         return [temp_tag.tag_id, temp_tag.center]
       else:
          # print("no tag detected")
          self.tag_in_frame = False
          return None
+      
+
+    def objectDetection(self,detect):
+        results = self.model.predict(self.frame)
+        new_frame = results[0].plot()
+        # if not results or len(results) == 0:
+        #     return 
+        larget_obj = []
+        for result in results:
+            detection_count = result.boxes.shape[0]
+            print("Number of objects in frame: {}".format(detection_count))
+
+            for i in range(detection_count):
+                cls = int(result.boxes.cls[i].item())
+                name = result.names[cls]
+                confidence = float(result.boxes.conf[i].item())
+                if(name == detect and confidence > 0.85):
+                    bounding_box = result.boxes.xyxy[i].cpu().numpy()
+                    x = int(bounding_box[0])
+                    y = int(bounding_box[1])
+                    width = int(bounding_box[2] - x)
+                    height = int(bounding_box[3] - y)
+                    if(not larget_obj):
+                        larget_obj = [x,y,width,height]
+                    elif (larget_obj[3] < height):
+                        larget_obj = [x,y,width,height]
+            if(larget_obj):
+                new_frame = self.drawCross(new_frame,[larget_obj[2],larget_obj[3]])
+        return new_frame #for debug
+        # return larget_obj #rea; return
 
     def __del__(self):
         self.vid.release()
@@ -154,11 +186,12 @@ class vision:
 
 
 if __name__ == '__main__':
-    cam = vision(2)
+    cam = vision(0)
 
     while True:
         cam.getFrame()
-        output,center = cam.colorTrack()
+        # output,center = cam.colorTrack()
+        output = cam.objectDetection("person")
         # output = cam.drawCross(output)
         cv2.imshow("img", output)
         if cv2.waitKey(1) & 0xFF == ord('q'): 
