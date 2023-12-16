@@ -75,7 +75,7 @@ class vision:
         new_frame = results[0].plot()
         # if not results or len(results) == 0:
         #     return 
-        larget_obj = []
+        obj_dict = {}
         for result in results:
             detection_count = result.boxes.shape[0]
             print("Number of objects in frame: {}".format(detection_count))
@@ -84,20 +84,22 @@ class vision:
                 cls = int(result.boxes.cls[i].item())
                 name = result.names[cls]
                 confidence = float(result.boxes.conf[i].item())
-                if(name == detect and confidence > 0.85):
+                if name in detect and confidence > 0.85:
                     bounding_box = result.boxes.xyxy[i].cpu().numpy()
                     x = int(bounding_box[0])
                     y = int(bounding_box[1])
                     width = int(bounding_box[2] - x)
                     height = int(bounding_box[3] - y)
-                    if(not larget_obj):
-                        larget_obj = [x,y,width,height]
-                    elif (larget_obj[3] < height):
-                        larget_obj = [x,y,width,height]
-            if(larget_obj):
-                new_frame = self.drawCross(new_frame,[larget_obj[2],larget_obj[3]])
-        return new_frame #for debug
-        # return larget_obj #rea; return
+                    if name not in obj_dict.keys():
+                        obj_dict[name] = [x,y,width,height]
+                    if (obj_dict[name][3] < height):
+                        obj_dict[name] = [x,y,width,height]
+
+            if(len(obj_dict.keys()) > 0):
+                for keys in obj_dict.keys():
+                    new_frame = self.drawCross(new_frame,[obj_dict[keys][2],obj_dict[keys][3]])
+        # return new_frame #for debug
+        return new_frame,obj_dict #rea; return
 
     def __del__(self):
         self.vid.release()
@@ -191,7 +193,8 @@ if __name__ == '__main__':
     while True:
         cam.getFrame()
         # output,center = cam.colorTrack()
-        output = cam.objectDetection("person")
+        output,objects = cam.objectDetection(["person","cat"])
+        print(objects.keys())
         # output = cam.drawCross(output)
         cv2.imshow("img", output)
         if cv2.waitKey(1) & 0xFF == ord('q'): 
