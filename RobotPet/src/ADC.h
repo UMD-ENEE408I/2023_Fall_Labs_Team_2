@@ -12,7 +12,7 @@ int adc1_buf[8];
 int adc2_buf[8];
 float avgVal = 0;
 int trueVal = 0;
-int threshold = 700; // threshold value for light and dark
+int threshold = 710; // threshold value for light and dark
 
 void initADC() {
   pinMode(14, OUTPUT);
@@ -25,21 +25,22 @@ void initADC() {
 void readADC() {
   avgVal = 0;
   trueVal = 0;
+  Serial.print("\n");
   for (int i = 0; i < 8; i++) {
     adc1_buf[i] = adc1.readADC(i);
     adc2_buf[i] = adc2.readADC(i);
 
     if (i<7) {
+      //Serial.print(adc1_buf[i]);Serial.print("\t");
       if (adc1_buf[i] > threshold) {
-      } else {
         avgVal += (i*2) + 1;
         trueVal += 1;
       }
     }
 
     if (i<6) {
+      //Serial.print(adc2_buf[i]);Serial.print("\t");
       if (adc2_buf[i] > threshold) {
-      } else {
         avgVal += (i*2) + 2;
         trueVal += 1;
       }
@@ -48,5 +49,4 @@ void readADC() {
   if (trueVal > 0) {
     avgVal = float(avgVal / (float)trueVal);
   }
-  Serial.println(avgVal);
 }

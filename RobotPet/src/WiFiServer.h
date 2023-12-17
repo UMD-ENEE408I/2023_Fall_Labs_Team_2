@@ -1,7 +1,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 
-const char* ssid = "Elijah's phone";
+const char* ssid = "LAPTOP";
 const char* password = "12345678";
 
 WiFiUDP Udp;
@@ -25,7 +25,7 @@ void initWIFI() {
 }
 
 
-void readWIFI() {
+int readWIFI() {
   int packetSize = Udp.parsePacket();
   if (packetSize) {
     // receive incoming UDP packets
@@ -37,8 +37,9 @@ void readWIFI() {
     Serial.printf("UDP packet contents: %s\n", incomingPacket);
 
     // send back a reply, to the IP address and port we got the packet from
-    Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-    Udp.write(*replyPacket);
-    Udp.endPacket();
-  }
+    //Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+    //Udp.write(*replyPacket);
+    //Udp.endPacket();
+    return len;
+  } else {return 0;}
 }

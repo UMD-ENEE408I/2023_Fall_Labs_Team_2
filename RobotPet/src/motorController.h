@@ -42,23 +42,23 @@ void initMotorController() {
 }
 
 void forwardM1(int speed) {
-  ledcWrite(M1_IN_1_CHANNEL, speed);
-  ledcWrite(M1_IN_2_CHANNEL, 0);
-}
-
-void forwardM2(int speed) {
-  ledcWrite(M2_IN_1_CHANNEL, speed);
-  ledcWrite(M2_IN_2_CHANNEL, 0);
-}
-
-void backwardsM1(int speed) {
   ledcWrite(M1_IN_1_CHANNEL, 0);
   ledcWrite(M1_IN_2_CHANNEL, speed);
 }
 
-void backwardsM2(int speed) {
+void forwardM2(int speed) {
   ledcWrite(M2_IN_1_CHANNEL, 0);
   ledcWrite(M2_IN_2_CHANNEL, speed);
+}
+
+void backwardsM1(int speed) {
+  ledcWrite(M1_IN_1_CHANNEL, speed);
+  ledcWrite(M1_IN_2_CHANNEL, 0);
+}
+
+void backwardsM2(int speed) {
+  ledcWrite(M2_IN_1_CHANNEL, speed);
+  ledcWrite(M2_IN_2_CHANNEL, 0);
 }
 
 void brakeM1() {

@@ -75,46 +75,52 @@ void initIMU() {
   }
 }
 
-void imuTurn90() {
-    bool turnComplete = false;
-    angle = 0;
-    while(!turnComplete) {
-        
-  /* Get new sensor events with the readings */
+void imuTurnCounterClkWise(float targetAngle) {
+  brakeM1();
+  brakeM2();
+  //Target angle in degrees
+  targetAngle = targetAngle*100*PI/180;
+  bool turnComplete = false;
+  angle = 0;
   sensors_event_t a, g, temp;
-  mpu.getEvent(&a, &g, &temp);
-  delay(2);
-  angle = angle + (g.gyro.z);
-  Serial.println(angle);
-if (angle < PI/2) {
-      backwardsM2(400);
+  while(!turnComplete) {
+    /* Get new sensor events with the readings */
+    mpu.getEvent(&a, &g, &temp);
+    angle = angle + (g.gyro.z)*2.1;
+    Serial.println(angle);
+    if (angle < targetAngle) {
+      forwardM2(600);
     } else {
       brakeM1();
       brakeM2();
       Serial.println("Complete");
       turnComplete = true;
     }
+    delay(21);
   }
 }
 
-void imuTurnN90() {
-    bool turnComplete = false;
-    angle = 0;
-    while(!turnComplete) {
-        
-  /* Get new sensor events with the readings */
+void imuTurnClkWise(float targetAngle) {
+  brakeM1();
+  brakeM2();
+  //Target angle in degrees to radians
+  targetAngle = -targetAngle*100*PI/180;
+  bool turnComplete = false;
+  angle = 0;
   sensors_event_t a, g, temp;
-  mpu.getEvent(&a, &g, &temp);
-  delay(2);
-  angle = angle + (g.gyro.z);
-  Serial.println(angle);
-if (angle > -PI/2) {
-      backwardsM1(400);
+  while(!turnComplete) {
+    /* Get new sensor events with the readings */
+    mpu.getEvent(&a, &g, &temp);
+    angle = angle + (g.gyro.z)*2.1;
+    Serial.println(angle);
+    if (angle > targetAngle) {
+      forwardM1(600);
     } else {
       brakeM1();
       brakeM2();
       Serial.println("Complete");
       turnComplete = true;
     }
+    delay(21);
   }
 }
