@@ -6,7 +6,7 @@ from pupil_apriltags import Detector
 import socket
 
 # Network variables
-robotIP = "192.168.137.5"
+robotIP = "192.168.137.51"
 port = 4210
  
 # Create a UDP socket
@@ -201,7 +201,7 @@ class vision:
 
 #convert value to arduino BYTE
 def numToByteRange(num, inMin, inMax):
-  return int((num - inMin) / (inMax - inMin) * (255-1))
+  return int((num - inMin) / (inMax - inMin) * (255-1)+1)
     
 
 if __name__ == '__main__':
@@ -221,9 +221,9 @@ if __name__ == '__main__':
             print("Person: X:" + str(objects["person"][0]) + " Y:" + str(objects["person"][1]) + " SizeXY:" + str(objects["person"][2]))
             # map outputs to arduino
             # map size from X size of screen
-            arduinoX = numToByteRange(objects["person"][0], 1, output.shape[0])
+            arduinoX = numToByteRange(objects["person"][0], 1, output.shape[1])
             # map size from Y size of screen
-            arduinoY = numToByteRange(objects["person"][1], 1, output.shape[1])
+            arduinoY = numToByteRange(objects["person"][1], 1, output.shape[0])
             # map size from XY size of screen
             arduinoSizeXY = numToByteRange(objects["person"][2], 1, math.sqrt(output.shape[0]*output.shape[1]))
         else:
