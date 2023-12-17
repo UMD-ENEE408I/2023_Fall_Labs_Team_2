@@ -10,7 +10,8 @@ char task = 0;
 //Define Variables we'll be connecting to
 double Setpoint, Input, Output;
 //Specify the links and initial tuning parameters
-double Kp=15, Ki=7, Kd=2;
+//PID values for searching movement
+double Kp=1, Ki=0.04, Kd=0.1;
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 // State machine, states that lock in
@@ -31,10 +32,10 @@ void setup() {
   initWIFI();
   initBuzzer();
   jingleDance(100);
-  Input = 128;
-  Setpoint = 128;
+  Input = targetXCenter;
+  Setpoint = targetXCenter;
   myPID.SetMode(AUTOMATIC);
-  myPID.SetOutputLimits(-150,150);
+  myPID.SetOutputLimits(-200,200);
   myPID.SetTunings(Kp,Ki,Kd);
   delay(1000);
 }
@@ -79,31 +80,31 @@ void loop() {
         searching = true;
       }
       Serial.printf("TargetX: %d TargetSize: %d\n", targetX, targetSize);
-      myPID.Compute();
-      if (targetX > 0) {
-        Input = targetX;
-        if (targetX >= targetXCenter*0.9 && targetX <= targetXCenter*1.1) {
-          Serial.printf("target found\n");
-          brakeM1();
-          brakeM2(); 
-        }
-        //hard right
-        if (targetX < targetXCenter*0.9) {
-          Serial.printf("Turning right towards target!\n");
-          backwardsM1((300+Output)*1.2);
-          forwardM2(300+Output);
-        }
-        //hard left
-        if (targetX > targetXCenter*1.1) {
-          Serial.printf("Turning left towards target!\n");
-          forwardM1((300+Output)*1.2);
-          backwardsM2(300+Output);
-        }
-      } else {
+      if (targetX <= 0) {
+        targetX = targetXCenter;
         Serial.printf("Looking for human\n"); 
-        Input = 128;
         idle();
       }
+      Input = targetX;
+      if (Output >= -20 && Output <= 20) {
+        Serial.printf("target found\n");
+        brakeM1();
+        brakeM2(); 
+      }
+      //hard right
+      if (Output < -20) {
+        Serial.printf("Turning right towards target!\n");
+        forwardM1((250-Output)*1.2);
+        backwardsM2(250-Output);
+      }
+      //hard left
+      if (Output > 20) {
+        Serial.printf("Turning left towards target!\n");
+        backwardsM1((250+Output)*1.2);
+        forwardM2(250+Output);
+      }
+      myPID.Compute();
+      Serial.printf("Output: %d\n", Output); 
       break;
     //Chase after ball
     case 'C':
