@@ -2,8 +2,26 @@ import cv2
 import math
 import numpy as np
 from ultralytics import YOLO
+import os
+import sys
 from pupil_apriltags import Detector
 
+class NoStdStreams(object):
+    def __init__(self,stdout = None, stderr = None):
+        self.devnull = open(os.devnull,'w')
+        self._stdout = stdout or self.devnull or sys.stdout
+        self._stderr = stderr or self.devnull or sys.stderr
+
+    def __enter__(self):
+        self.old_stdout, self.old_stderr = sys.stdout, sys.stderr
+        self.old_stdout.flush(); self.old_stderr.flush()
+        sys.stdout, sys.stderr = self._stdout, self._stderr
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._stdout.flush(); self._stderr.flush()
+        sys.stdout = self.old_stdout
+        sys.stderr = self.old_stderr
+        self.devnull.close()
 
 class vision:
     def __init__(self, vid_device):
@@ -70,9 +88,11 @@ class vision:
          return None
       
 
+
     def objectDetection(self,detect):
         results = self.model.predict(self.frame)
-        new_frame = results[0].plot()
+        with NoStdStreams():
+          new_frame = results[0].plot()
         # if not results or len(results) == 0:
         #     return 
         obj_dict = {}
