@@ -1,0 +1,156 @@
+# This is a simple demonstration on how to stream
+# audio from microphone and then extract the pitch
+# and volume directly with help of PyAudio and Aubio
+# Python libraries. The PyAudio is used to interface
+# the computer microphone. While the Aubio is used as
+# a pitch detection object. There is also NumPy
+# as well to convert format between PyAudio into
+# the Aubio.
+import aubio
+import numpy as num
+import pyaudio
+import time
+import sys
+
+# Some constants for setting the PyAudio and the
+# Aubio.
+# BUFFER_SIZE             = 2048
+# CHANNELS                = 1
+# FORMAT                  = pyaudio.paFloat32
+# METHOD                  = "default"
+# SAMPLE_RATE             = 44100
+# HOP_SIZE                = BUFFER_SIZE//2
+# PERIOD_SIZE_IN_FRAME    = HOP_SIZE
+# MIC_DEVICE              = 12
+# FREQUENCY               = 1300 #Hz    
+# SENSITIVITY_TONE        = 2 #lower = more
+
+class tone_detect:
+
+    def __init__(self, MIC_DEVICE):
+        self.BUFFER_SIZE             = 2048
+        self.CHANNELS                = 1
+        self.FORMAT                  = pyaudio.paFloat32
+        self.METHOD                  = "default"
+        self.SAMPLE_RATE             = 44100
+        self.HOP_SIZE                = self.BUFFER_SIZE//2
+        self.PERIOD_SIZE_IN_FRAME    = self.HOP_SIZE
+        self.MIC_DEVICE              = MIC_DEVICE
+        self.FREQUENCY               = 1300 #Hz    
+        self.SENSITIVITY_TONE        = 2 #lower = more  
+        self.seconds                 = time.time()
+        self.sum                     = 0
+        self.pA                      = pyaudio.PyAudio()
+        self.pDetection              = aubio.pitch(self.METHOD, self.BUFFER_SIZE,
+        self.HOP_SIZE, self.SAMPLE_RATE)
+        self.mic                     = self.pA.open(format=self.FORMAT, channels=self.CHANNELS,
+        rate=self.SAMPLE_RATE, input=True,input_device_index =self.MIC_DEVICE,
+        frames_per_buffer=self.PERIOD_SIZE_IN_FRAME)
+
+        # Set unit.
+        self.pDetection.set_unit("Hz")
+        # Frequency under -100 dB will considered
+        # as a silence.
+        self.pDetection.set_silence(-100)
+    
+    def getAudio(self):
+        data = self.mic.read(self.PERIOD_SIZE_IN_FRAME)
+        # Convert into number that Aubio understand.
+        samples = num.fromstring(data,
+            dtype=aubio.float_type)
+        # Finally get the pitch.
+        pitch = self.pDetection(samples)[0]
+        # Compute the energy (volume)
+        # of the current frame.
+        volume = num.sum(samples**2)/len(samples)
+        # Format the volume output so it only
+        # displays at most six numbers behind 0.
+        volume = "{:6f}".format(volume)
+        pitch = "{:6f}".format(pitch)
+        pitch_num = round(int(float(pitch)))
+        # print(pitch_num) 
+        # Finally print the pitch and the volume.
+        if(pitch_num > self.FREQUENCY-20 and pitch_num < self.FREQUENCY+20):
+            self.sum = self.sum +1
+        if(time.time() - self.seconds > 0.1):
+            if(self.sum > self.SENSITIVITY_TONE):
+                # print("tone detected")
+                self.seconds = time.time()
+                self.sum = 0
+                return 1
+            else:
+                # print("tone not detected")
+                self.seconds = time.time()
+                self.sum = 0
+                return 0
+        else:
+            return 0
+
+        # print(str(pitch) + " " + str(volume))
+        # else:
+        #     print("tone not detected")
+        # print(str(pitch) + " " + str(volume))
+
+
+
+def main(args):
+    tone = tone_detect(12)
+
+    while(True):
+        detect = tone.getAudio()
+        print(detect)
+
+    # seconds = time.time()
+    # sum = 0
+    # # Initiating PyAudio object.
+    # pA = pyaudio.PyAudio()
+    # # Open the microphone stream.
+    # mic = pA.open(format=FORMAT, channels=CHANNELS,
+    #     rate=SAMPLE_RATE, input=True,input_device_index =MIC_DEVICE,
+    #     frames_per_buffer=PERIOD_SIZE_IN_FRAME)
+
+    # # Initiating Aubio's pitch detection object.
+    # pDetection = aubio.pitch(METHOD, BUFFER_SIZE,
+    #     HOP_SIZE, SAMPLE_RATE)
+    # # Set unit.
+    # pDetection.set_unit("Hz")
+    # # Frequency under -100 dB will considered
+    # # as a silence.
+    # pDetection.set_silence(-100)
+
+    # # Infinite loop!
+    # while True:
+
+    #     # Always listening to the microphone.
+    #     data = mic.read(PERIOD_SIZE_IN_FRAME)
+    #     # Convert into number that Aubio understand.
+    #     samples = num.fromstring(data,
+    #         dtype=aubio.float_type)
+    #     # Finally get the pitch.
+    #     pitch = pDetection(samples)[0]
+    #     # Compute the energy (volume)
+    #     # of the current frame.
+    #     volume = num.sum(samples**2)/len(samples)
+    #     # Format the volume output so it only
+    #     # displays at most six numbers behind 0.
+    #     volume = "{:6f}".format(volume)
+    #     pitch = "{:6f}".format(pitch)
+    #     pitch_num = round(int(float(pitch)))
+    #     # print(pitch_num) 
+    #     # Finally print the pitch and the volume.
+    #     if(pitch_num > FREQUENCY-20 and pitch_num < FREQUENCY+20):
+    #         sum = sum +1
+    #     if(time.time() - seconds > 0.1):
+    #         if(sum > SENSITIVITY_TONE):
+    #             print("tone detected")
+    #         else:
+    #             print("tone not detected")
+    #         seconds = time.time()
+    #         sum = 0
+    #     # print(str(pitch) + " " + str(volume))
+    #     # else:
+    #     #     print("tone not detected")
+    #     # print(str(pitch) + " " + str(volume))
+
+
+if __name__ == "__main__": main(sys.argv)
