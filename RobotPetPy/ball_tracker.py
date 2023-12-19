@@ -2,10 +2,16 @@ import cv2
 import math
 import numpy as np
 from ultralytics import YOLO
-import os
-import sys
 from pupil_apriltags import Detector
+import socket
 
+# Network variables
+robotIP = "192.168.137.104"
+port = 4210
+ 
+# Create a UDP socket
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+robot_address = (robotIP, port)
 
 class vision:
     def __init__(self, vid_device):
@@ -43,7 +49,6 @@ class vision:
         return img
 
     def getTag(self):
-      self.getFrame()
       gray_image = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY) 
       fx = ( gray_image.shape[0] / 2.0 ) / math.tan( (math.pi * 120/180.0 )/2.0 )
       fy = ( gray_image.shape[1] / 2.0 ) / math.tan( (math.pi * 120/180.0 )/2.0 )
@@ -65,18 +70,16 @@ class vision:
          # print(tags[0].corners.sum())
          # self.drawCross(temp_tag.center)
          # print(temp_tag.tag_id)
-         return [temp_tag.tag_id, temp_tag.center]
+         return temp_tag.tag_id
       else:
          # print("no tag detected")
          self.tag_in_frame = False
-         return None
+         return -1
       
-
 
     def objectDetection(self,detect):
         results = self.model.predict(self.frame)
-        with NoStdStreams():
-          new_frame = results[0].plot()
+        new_frame = results[0].plot()
         # if not results or len(results) == 0:
         #     return 
         obj_dict = {}
@@ -88,7 +91,7 @@ class vision:
                 cls = int(result.boxes.cls[i].item())
                 name = result.names[cls]
                 confidence = float(result.boxes.conf[i].item())
-                if name in detect and confidence > 0.5:
+                if name in detect and confidence > 0.65:
                     bounding_box = result.boxes.xyxy[i].cpu().numpy()
                     x = int(bounding_box[0])
                     y = int(bounding_box[1])
@@ -205,31 +208,95 @@ if __name__ == '__main__':
     arduinoX = 0
     arduinoY = 0
     arduinoSizeXY = 0
+    myRoboDogState = "sleep"
+    sizeXYThresholdPerson = 180
+    sizeXYThresholdBall = 100
+    sizeXYThresholdFruit = 80
+    states = ["sleeping", "roaming", "searching", "chasing ball", "eating", "dancing", "moving", "wait for command"]
+    previousState = "sleeping"
 
     while True:
         cam.getFrame()
         # output,center = cam.colorTrack()
-        output,objects = cam.objectDetection(["person","banana"])
+        output,objects = cam.objectDetection(["person","banana","sports ball","frisbee"])
+        # output_color,center = cam.colorTrack()
         # check if tag is in photo
+        if myRoboDogState == "sleeping":
+            sock.sendto(("S").encode('utf-8'), robot_address)
+            # Check if sound was heard
+        if myRoboDogState == "roaming":
+            sock.sendto(("R").encode('utf-8'), robot_address)
+        if myRoboDogState == "searching":
+            if "person" in objects.keys():
+                print("Person: X:" + str(objects["person"][0]) + " Y:" + str(objects["person"][1]) + " SizeXY:" + str(objects["person"][2]))
+                # map outputs to arduino
+                # map size from X size of screen
+                arduinoX = numToByteRange(objects["person"][0], 1, output.shape[1])
+                # map size from Y size of screen
+                arduinoY = numToByteRange(objects["person"][1], 1, output.shape[0])
+                # map size from XY size of screen
+                arduinoSizeXY = numToByteRange(objects["person"][2], 1, math.sqrt(output.shape[0]*output.shape[1]))
+            else:
+                arduinoX = 0
+                arduinoY = 0
+                arduinoSizeXY = 0
+            if arduinoSizeXY > sizeXYThresholdPerson:
+                pass
+            sock.sendto(("H" + chr(arduinoX) + chr(arduinoSizeXY)).encode('utf-8'), robot_address)
+        if myRoboDogState == "chasing ball":
+            if "frisbee" in objects.keys():
+                print("Ball: X:" + str(objects["frisbee"][0]) + " Y:" + str(objects["frisbee"][1]) + " SizeXY:" + str(objects["frisbee"][2]))
+                # map outputs to arduino
+                # map size from X size of screen
+                arduinoX = numToByteRange(objects["frisbee"][0], 1, output.shape[1])
+                # map size from Y size of screen
+                arduinoY = numToByteRange(objects["frisbee"][1], 1, output.shape[0])
+                # map size from XY size of screen
+                arduinoSizeXY = numToByteRange(objects["frisbee"][2], 1, math.sqrt(output.shape[0]*output.shape[1]))
+            elif "sports ball" in objects.keys():
+                print("Ball: X:" + str(objects["sports ball"][0]) + " Y:" + str(objects["sports ball"][1]) + " SizeXY:" + str(objects["sports ball"][2]))
+                # map outputs to arduino
+                # map size from X size of screen
+                arduinoX = numToByteRange(objects["sports ball"][0], 1, output.shape[1])
+                # map size from Y size of screen
+                arduinoY = numToByteRange(objects["sports ball"][1], 1, output.shape[0])
+                # map size from XY size of screen
+                arduinoSizeXY = numToByteRange(objects["sports ball"][2], 1, math.sqrt(output.shape[0]*output.shape[1]))
+            else:
+                arduinoX = 0
+                arduinoY = 0
+                arduinoSizeXY = 0
+            if arduinoSizeXY > sizeXYThresholdPerson:
+                myRoboDogState == "wait for command"
+                continue
+            sock.sendto(("C" + chr(arduinoX) + chr(arduinoSizeXY)).encode('utf-8'), robot_address)
+        if myRoboDogState == "eating":
+            sock.sendto(("E" + chr(arduinoX) + chr(arduinoSizeXY)).encode('utf-8'), robot_address)
+            myRoboDogState = "sleeping"
+        if myRoboDogState == "dancing":
+            sock.sendto(("D").encode('utf-8'), robot_address)
+            myRoboDogState = "sleeping"
+        if myRoboDogState == "moving":
+            continue
+        if myRoboDogState == "wait for command":
+            sock.sendto(("S").encode('utf-8'), robot_address)
+            continue
+        
+        # print("Camera XY:" + str(output.shape[0]) + " " + str(output.shape[1]))
+        if myRoboDogState == "chasing ball" or "searching":
+            print("Data: " + str(arduinoX) + " " + str(arduinoY) + " " + str(arduinoSizeXY))
+        tagId = cam.getTag()
+        print("Current state: " + myRoboDogState + " Tag: " + str(tagId) + " Tag state: " + states[tagId] + " Previous state: " + previousState)
         if "banana" in objects.keys():
             print("Banana: X:" + str(objects["banana"][0]) + " Y:" + str(objects["banana"][1]) + " SizeXY:" + str(objects["banana"][2]))
-        if "person" in objects.keys():
-            print("Person: X:" + str(objects["person"][0]) + " Y:" + str(objects["person"][1]) + " SizeXY:" + str(objects["person"][2]))
-            # map outputs to arduino
-            # map size from X size of screen
-            arduinoX = numToByteRange(objects["person"][0], 1, output.shape[1])
-            # map size from Y size of screen
-            arduinoY = numToByteRange(objects["person"][1], 1, output.shape[0])
-            # map size from XY size of screen
-            arduinoSizeXY = numToByteRange(objects["person"][2], 1, math.sqrt(output.shape[0]*output.shape[1]))
-        else:
-            arduinoX = 0
-            arduinoY = 0
-            arduinoSizeXY = 0
-        print("Camera XY:" + str(output.shape[0]) + " " + str(output.shape[1]))
-        print("Data: " + str(arduinoX) + " " + str(arduinoY) + " " + str(arduinoSizeXY))
-        # Send data to robot
-        sock.sendto(("H" + chr(arduinoX) + chr(arduinoSizeXY)).encode('utf-8'), robot_address)
+            if objects["banana"][2] > math.sqrt(output.shape[0]*output.shape[1])*0.3:
+                myRoboDogState = "eating"
+        if tagId > 0:
+            myRoboDogState = states[tagId]
+            if myRoboDogState == "eating" or "moving" or "dancing" or "roaming":
+                if myRoboDogState == previousState:
+                    myRoboDogState = "sleeping"
+        previousState = myRoboDogState
         # output = cam.drawCross(output)
         cv2.imshow("img", output)
         if cv2.waitKey(1) & 0xFF == ord('q'): 
