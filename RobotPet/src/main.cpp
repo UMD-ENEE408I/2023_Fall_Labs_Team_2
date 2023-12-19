@@ -64,7 +64,7 @@ int approach(int goalSize, int goalXMargin) {
     Input = targetXCenter;
     idle();
   }
-  if (Output >= -10 && Output <= 1) {
+  if (Output >= -15 && Output <= 15) {
     idle();     
   }
   //hard right
@@ -119,14 +119,14 @@ void loop() {
       break;
     //Look for human
     case 'H':
-      if (approach(180, 45) == true) {
+      if (approach(200, 60) == true) {
         idle();
         jingleFoundHuman(100);
       }
       break;
     //Chase after ball
     case 'C':
-      if (approach(220, 60) == true) {
+      if (approach(180, 70) == true) {
         forwardM1(500);
         forwardM2(500);
         delay(500);
@@ -169,8 +169,8 @@ void loop() {
         }
       } else{
         Serial.printf("Forward\n");
-        forwardM1(300*1.2);
-        forwardM2(300);
+        forwardM1(350*1.2);
+        forwardM2(350);
       }
       break;
 
@@ -191,7 +191,7 @@ void loop() {
       myChirp(1);
       forwardM1(400*1.2);
       forwardM2(400);
-      myChirp(2);
+      myChirp(1);
       backwardsM1(400*1.2);
       backwardsM2(400);
       myChirp(1);
@@ -203,15 +203,15 @@ void loop() {
     case 'D':
       Serial.printf("Dance\n");
       forwardM1(300*1.2);
-      backwardsM2(300);
+      backwardsM2(400);
       jingleDance(200);
       idle();
-      backwardsM1(300*1.2);
-      forwardM2(300);
+      backwardsM1(400*1.2);
+      forwardM2(400);
       jingleDance(200);
       idle();
-      forwardM1(300*1.2);
-      backwardsM2(300);
+      forwardM1(400*1.2);
+      backwardsM2(400);
       jingleDance(200);
       brakeM1();
       brakeM2();
