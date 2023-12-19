@@ -11,7 +11,8 @@ char task = 0;
 double Setpoint, Input, Output;
 //Specify the links and initial tuning parameters
 //PID values for searching movement
-double Kp=1, Ki=0.04, Kd=0.1;
+double Kp=1, Ki=0.04, Kd=0.10;
+
 PID myPID(&Input, &Output, &Setpoint, Kp, Ki, Kd, DIRECT);
 
 // State machine, states that lock in
@@ -21,8 +22,6 @@ bool sleeping = false;
 int targetX = 0;
 int targetSize = 0;
 int targetXCenter = 128;
-
-
 
 void setup() {
   Serial.begin(115200);
@@ -38,6 +37,52 @@ void setup() {
   myPID.SetOutputLimits(-200,200);
   myPID.SetTunings(Kp,Ki,Kd);
   delay(1000);
+}
+
+// Size is the size to approach
+int approach(int goalSize, int goalXMargin) {
+  //PID input
+  Input = targetX;
+  if (searching == false) {
+    Serial.printf("initialize search\n");
+    jingleSearch(100);
+    searching = true;
+  }
+  Serial.printf("TargetX: %d TargetSize: %d\n", targetX, targetSize);
+  if (targetX >= targetXCenter-goalXMargin && targetX <= targetXCenter+goalXMargin) {
+    if(targetSize <= goalSize) {
+      forwardM1((500)*1.2);
+      forwardM2((500));
+    } else {
+      // Found Target
+      return(1);
+    }
+    myPID.Compute();
+    return 0;
+  }
+  if (targetX <= 0) {
+    Input = targetXCenter;
+    idle();
+  }
+  if (Output >= -10 && Output <= 1) {
+    idle();     
+  }
+  //hard right
+  if (Output < 0) {
+    Serial.printf("Turning right towards target!\n");
+    forwardM1((250-Output)*1.2);
+    backwardsM2(250-Output);
+  }
+  //hard left
+  if (Output > 0) {
+    Serial.printf("Turning left towards target!\n");
+    backwardsM1((250+Output)*1.2);
+    forwardM2(250+Output);
+  }
+  //Approach
+  myPID.Compute();
+  Serial.printf("Output: %d\n", Output); 
+  return 0;
 }
 
 void loop() {
@@ -74,43 +119,19 @@ void loop() {
       break;
     //Look for human
     case 'H':
-      if (searching == false) {
-        Serial.printf("initialize search\n");
-        jingleSearch(100);
-        searching = true;
-      }
-      Serial.printf("TargetX: %d TargetSize: %d\n", targetX, targetSize);
-      if (targetX <= 0) {
-        targetX = targetXCenter;
-        Serial.printf("Looking for human\n"); 
+      if (approach(180, 45) == true) {
         idle();
+        jingleFoundHuman(100);
       }
-      Input = targetX;
-      if (Output >= -20 && Output <= 20) {
-        Serial.printf("target found\n");
-        brakeM1();
-        brakeM2(); 
-      }
-      //hard right
-      if (Output < -20) {
-        Serial.printf("Turning right towards target!\n");
-        forwardM1((250-Output)*1.2);
-        backwardsM2(250-Output);
-      }
-      //hard left
-      if (Output > 20) {
-        Serial.printf("Turning left towards target!\n");
-        backwardsM1((250+Output)*1.2);
-        forwardM2(250+Output);
-      }
-      myPID.Compute();
-      Serial.printf("Output: %d\n", Output); 
       break;
     //Chase after ball
     case 'C':
-      Serial.printf("Chase after ball\n");
-      jingleSearch(100);
-      
+      if (approach(220, 60) == true) {
+        forwardM1(500);
+        forwardM2(500);
+        delay(500);
+        jingleFoundHuman(100);
+      }
       break;
     
     //Actions
@@ -181,16 +202,16 @@ void loop() {
     //Dance
     case 'D':
       Serial.printf("Dance\n");
-      forwardM1(400*1.2);
-      backwardsM2(400);
+      forwardM1(300*1.2);
+      backwardsM2(300);
       jingleDance(200);
       idle();
-      backwardsM1(400*1.2);
-      forwardM2(200);
+      backwardsM1(300*1.2);
+      forwardM2(300);
       jingleDance(200);
       idle();
-      forwardM1(400*1.2);
-      backwardsM2(400);
+      forwardM1(300*1.2);
+      backwardsM2(300);
       jingleDance(200);
       brakeM1();
       brakeM2();
