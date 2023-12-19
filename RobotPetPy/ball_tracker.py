@@ -4,9 +4,10 @@ import numpy as np
 from ultralytics import YOLO
 from pupil_apriltags import Detector
 import socket
+import time
 
 # Network variables
-robotIP = "192.168.137.104"
+robotIP = "192.168.137.7"
 port = 4210
  
 # Create a UDP socket
@@ -91,7 +92,7 @@ class vision:
                 cls = int(result.boxes.cls[i].item())
                 name = result.names[cls]
                 confidence = float(result.boxes.conf[i].item())
-                if name in detect and confidence > 0.65:
+                if name in detect and confidence > 0.65 or ((name == "sports ball" or name == "frisbee") and confidence > 0.25):
                     bounding_box = result.boxes.xyxy[i].cpu().numpy()
                     x = int(bounding_box[0])
                     y = int(bounding_box[1])
@@ -272,14 +273,18 @@ if __name__ == '__main__':
             sock.sendto(("C" + chr(arduinoX) + chr(arduinoSizeXY)).encode('utf-8'), robot_address)
         if myRoboDogState == "eating":
             sock.sendto(("E" + chr(arduinoX) + chr(arduinoSizeXY)).encode('utf-8'), robot_address)
+            time.sleep(5)
             myRoboDogState = "sleeping"
         if myRoboDogState == "dancing":
             sock.sendto(("D").encode('utf-8'), robot_address)
+            time.sleep(5)
             myRoboDogState = "sleeping"
         if myRoboDogState == "moving":
+            time.sleep(5)
             continue
         if myRoboDogState == "wait for command":
             sock.sendto(("S").encode('utf-8'), robot_address)
+            time.sleep(2)
             continue
         
         # print("Camera XY:" + str(output.shape[0]) + " " + str(output.shape[1]))
@@ -289,9 +294,9 @@ if __name__ == '__main__':
         print("Current state: " + myRoboDogState + " Tag: " + str(tagId) + " Tag state: " + states[tagId] + " Previous state: " + previousState)
         if "banana" in objects.keys():
             print("Banana: X:" + str(objects["banana"][0]) + " Y:" + str(objects["banana"][1]) + " SizeXY:" + str(objects["banana"][2]))
-            if objects["banana"][2] > math.sqrt(output.shape[0]*output.shape[1])*0.3:
+            if objects["banana"][2] > math.sqrt(output.shape[0]*output.shape[1])*0.25:
                 myRoboDogState = "eating"
-        if tagId > 0:
+        if tagId >= 0:
             myRoboDogState = states[tagId]
             if myRoboDogState == "eating" or "moving" or "dancing" or "roaming":
                 if myRoboDogState == previousState:
